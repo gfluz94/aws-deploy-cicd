@@ -2,7 +2,6 @@ import os
 import boto3
 
 from .exceptions import S3ClientError, InvalidBucketName, MissingCredentials
-from botocore.exceptions import ClientError
 
 SUCCESS_STATUS_CODE = "200"
 
@@ -71,7 +70,9 @@ def dump_s3_data(
     client = boto3.client(
         "s3", aws_access_key_id=aws_access_key, aws_secret_access_key=aws_secret_key
     )
-    response = client.upload_file(Filename=local_filepath, Bucket=bucket_name, Key=key_name)
+    response = client.upload_file(
+        Filename=local_filepath, Bucket=bucket_name, Key=key_name
+    )
     if response["ResponseMetadata"]["HTTPStatusCode"] != SUCCESS_STATUS_CODE:
         raise S3ClientError(
             "Please check either bucket name or permissions to access S3 bucket!"

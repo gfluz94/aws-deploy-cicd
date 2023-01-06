@@ -129,8 +129,6 @@ dmypy.json
 .pyre/
 
 # Ignore data
-data/*.csv
-data/*.xls*
-data/*.txt
-data/*.json
-data/*.tsv
+data/*
+output/*
+!.gitkeep

@@ -6,7 +6,7 @@ format:
 	python3 -m black .
 
 lint:
-	python3 -m pylint --disable=R,C deploy/**/*.py
+	python3 -m pylint --disable=R,C train/*.py serve/*.py
 
 test:
 	python3 -m pytest -vv --cov

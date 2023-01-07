@@ -52,7 +52,6 @@ def dump_s3_data(
     local_filepath: str,
     bucket_name: str,
     prefix: str,
-    key_name: str,
     aws_access_key: str,
     aws_secret_key: str,
 ) -> None:
@@ -60,7 +59,7 @@ def dump_s3_data(
     Args:
         local_filepath (str): Local file that needs to be dumped to S3.
         bucket_name (str): Name of the bucket in S3 where files are nested
-        key_name (str): Key name inside bucket.
+        prefix (str): Key name inside bucket.
         aws_access_key (str): AWS Access Key in order to fetch data from S3
         aws_secret_key (str): AWS Secret Key in order to fetch data from S3
     Raises:

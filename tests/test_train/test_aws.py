@@ -33,7 +33,6 @@ class TestAWS(object):
                 local_filepath="output/model.pkl",
                 bucket_name="",
                 prefix="model",
-                key_name="model",
                 aws_access_key="1234",
                 aws_secret_key="1234",
             )
@@ -44,7 +43,6 @@ class TestAWS(object):
                 local_filepath="output/model.pkl",
                 bucket_name="data-cicd-gfluz94",
                 prefix="model",
-                key_name="model",
                 aws_access_key=None,
                 aws_secret_key=None,
             )

@@ -52,6 +52,7 @@ def dump_s3_data(
     local_filepath: str,
     bucket_name: str,
     prefix: str,
+    key_name: str,
     aws_access_key: str,
     aws_secret_key: str,
 ) -> None:

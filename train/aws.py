@@ -3,7 +3,7 @@ import boto3
 from pathlib import Path
 from botocore.exceptions import ClientError
 
-from exceptions import S3ClientError, InvalidBucketName, MissingCredentials
+from train.exceptions import S3ClientError, InvalidBucketName, MissingCredentials
 
 SUCCESS_STATUS_CODE = "200"
 

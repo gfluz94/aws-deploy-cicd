@@ -9,6 +9,8 @@ class TestAWS(object):
         with pytest.raises(InvalidBucketName):
             fetch_s3_data(
                 bucket_name="",
+                prefix="data",
+                filename="dataset.csv",
                 target_folder="data",
                 aws_access_key="1234",
                 aws_secret_key="1234",
@@ -18,6 +20,8 @@ class TestAWS(object):
         with pytest.raises(MissingCredentials):
             fetch_s3_data(
                 bucket_name="data-cicd-gfluz94",
+                prefix="data",
+                filename="dataset.csv",
                 target_folder="data",
                 aws_access_key=None,
                 aws_secret_key=None,
@@ -28,7 +32,7 @@ class TestAWS(object):
             dump_s3_data(
                 local_filepath="output/model.pkl",
                 bucket_name="",
-                key_name="model",
+                prefix="model",
                 aws_access_key="1234",
                 aws_secret_key="1234",
             )
@@ -38,7 +42,7 @@ class TestAWS(object):
             dump_s3_data(
                 local_filepath="output/model.pkl",
                 bucket_name="data-cicd-gfluz94",
-                key_name="model",
+                prefix="model",
                 aws_access_key=None,
                 aws_secret_key=None,
             )

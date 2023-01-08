@@ -88,5 +88,5 @@ if __name__ == "__main__":
             aws_secret_key=aws_secret_key,
         )
         logger.info("Dataset successfully uploaded to local folder %s...", DATA_FOLDER)
-    df = pd.read_csv(os.path.join(DATA_FOLDER, TARGET_FILE))
+    df = pd.read_csv(os.path.join(DATA_FOLDER, TARGET_FILE), sep=";")
     logger.info("Dataframe loaded!")

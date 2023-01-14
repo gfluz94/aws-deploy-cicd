@@ -132,3 +132,6 @@ dmypy.json
 data/*
 output/*
 !.gitkeep
+
+# DS STORE
+.DS_Store

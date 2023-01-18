@@ -3,6 +3,13 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+import logging
+
+logging.basicConfig(
+    level=logging.DEBUG, format="[%(asctime)s] %(levelname)s - %(message)s"
+)
+logger = logging.getLogger()
+
 
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import (

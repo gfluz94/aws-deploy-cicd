@@ -1,9 +1,10 @@
 from typing import Dict, List, Tuple, Union
+import os
 import pandas as pd
 import numpy as np
 
-# import matplotlib.pyplot as plt
-# import seaborn as sns
+import matplotlib.pyplot as plt
+import seaborn as sns
 import logging
 
 logging.basicConfig(
@@ -239,16 +240,13 @@ class TrainingOrchestrator(object):
             )
         return self._model
 
-    def _get_metrics(self, df: pd.DataFrame, threshold: float = 0.5) -> Dict[str, float]:
-        df_ = self._preprocess_data(df.copy())
-        X, y = self._get_features_and_targets(df_)
-        y_proba = self._get_model().predict_proba(X)
+    def _get_metrics(self, y_proba: np.ndarray, y_true: pd.Series, threshold: float = 0.5) -> Dict[str, float]:
         y_pred = (y_proba > threshold) * 1.0
-        recall = recall_score(y, y_pred)
-        precision = precision_score(y, y_pred)
+        recall = recall_score(y_true, y_pred)
+        precision = precision_score(y_true, y_pred)
         f1 = 2 * recall * precision / (recall + precision)
-        auc = roc_auc_score(y, y_proba)
-        avg_p = average_precision_score(y, y_proba)
+        auc = roc_auc_score(y_true, y_proba)
+        avg_p = average_precision_score(y_true, y_proba)
         return {
             "RECALL": recall,
             "PRECISION": precision,
@@ -257,8 +255,36 @@ class TrainingOrchestrator(object):
             "AVERAGE PRECISION": avg_p
         }
 
-    def _plot_curves(self) -> None:
-        pass
+    def _plot_curves(self, y_proba: np.ndarray, y_true: pd.Series, label: str) -> None:
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 4), sharey=True)
+        fpr, tpr, _ = roc_curve(y_true, y_proba)
+        ax1.plot(fpr, tpr, color="red", label=f"(AUC = {roc_auc_score(y_true, y_proba):.3f})")
+        ax1.plot([0,1], [0,1], color="navy")
+        ax1.set_xlabel("FPR")
+        ax1.set_ylabel("TPR")
+        ax1.set_xlim((0,1))
+        ax1.set_ylim((0,1.001))
+        ax1.legend(loc=4)
+        ax1.grid(alpha=0.15)
+        ax1.set_title(f"{label.upper()} - ROC", fontsize=13)
+
+        precision, recall, _ = precision_recall_curve(y_true, y_proba)
+        ax2.plot(
+            recall, precision, color="red",
+            label=f"(AUC = {average_precision_score(y_true, y_proba):.3f}"
+        )
+        ax2.set_xlabel("Recall")
+        ax2.set_ylabel("Precision")
+        ax2.set_xlim((0,1))
+        ax2.set_ylim((0,1.001))
+        ax2.legend(loc=4)
+        ax2.grid(alpha=0.15)
+        ax2.set_title(f"{label.upper()} - Precision-Recall", fontsize=13)
+        plt.show()
+
+        if self._save_eval_artifacts:
+            fig.savefig(os.path.join(self._eval_artifacts_path, f"roc_pr_{label}.png"))
+
 
     def _plot_distribution(self) -> None:
         pass

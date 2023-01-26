@@ -14,14 +14,14 @@ logger = logging.getLogger()
 
 from sklearn.model_selection import train_test_split
 
-# from sklearn.metrics import (
-#     roc_auc_score,
-#     roc_curve,
-#     precision_recall_curve,
-#     precision_score,
-#     recall_score,
-#     average_precision_score,
-# )
+from sklearn.metrics import (
+    roc_auc_score,
+    roc_curve,
+    precision_recall_curve,
+    precision_score,
+    recall_score,
+    average_precision_score,
+)
 from sklearn.calibration import CalibratedClassifierCV
 import xgboost
 
@@ -239,13 +239,28 @@ class TrainingOrchestrator(object):
             )
         return self._model
 
-    def _get_metrics(self) -> None:
-        pass
+    def _get_metrics(self, df: pd.DataFrame, threshold: float = 0.5) -> Dict[str, float]:
+        df_ = self._preprocess_data(df.copy())
+        X, y = self._get_features_and_targets(df_)
+        y_proba = self._get_model().predict_proba(X)
+        y_pred = (y_proba > threshold) * 1.0
+        recall = recall_score(y, y_pred)
+        precision = precision_score(y, y_pred)
+        f1 = 2 * recall * precision / (recall + precision)
+        auc = roc_auc_score(y, y_proba)
+        avg_p = average_precision_score(y, y_proba)
+        return {
+            "RECALL": recall,
+            "PRECISION": precision,
+            "F1": f1,
+            "ROC-AUC": auc,
+            "AVERAGE PRECISION": avg_p
+        }
 
     def _plot_curves(self) -> None:
         pass
 
-    def _plot_distirbution(self) -> None:
+    def _plot_distribution(self) -> None:
         pass
 
     def _generate_band_analysis(self) -> None:

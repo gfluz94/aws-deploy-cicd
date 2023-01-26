@@ -26,6 +26,8 @@ from sklearn.metrics import (
 from sklearn.calibration import CalibratedClassifierCV
 import xgboost
 
+from exceptions import ModelNotFitted
+
 
 class TrainingOrchestrator(object):
     """Orchestrator for the whole training loop. The main methods output the classifier and its performance evaluation.
@@ -245,7 +247,9 @@ class TrainingOrchestrator(object):
         constant = 600 - np.log(50) * double_decrease_factor
         return constant - np.log(y_proba / (1 - y_proba)) * double_decrease_factor
 
-    def _get_metrics(self, y_proba: np.ndarray, y_true: pd.Series, threshold: float = 0.5) -> Dict[str, float]:
+    def _get_metrics(
+        self, y_proba: np.ndarray, y_true: pd.Series, threshold: float = 0.5
+    ) -> Dict[str, float]:
         y_pred = (y_proba > threshold) * 1.0
         recall = recall_score(y_true, y_pred)
         precision = precision_score(y_true, y_pred)
@@ -257,31 +261,35 @@ class TrainingOrchestrator(object):
             "PRECISION": precision,
             "F1": f1,
             "ROC-AUC": auc,
-            "AVERAGE PRECISION": avg_p
+            "AVERAGE PRECISION": avg_p,
         }
 
     def _plot_curves(self, y_proba: np.ndarray, y_true: pd.Series, label: str) -> None:
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 4), sharey=True)
         fpr, tpr, _ = roc_curve(y_true, y_proba)
-        ax1.plot(fpr, tpr, color="red", label=f"(AUC = {roc_auc_score(y_true, y_proba):.3f})")
-        ax1.plot([0,1], [0,1], color="navy")
+        ax1.plot(
+            fpr, tpr, color="red", label=f"(AUC = {roc_auc_score(y_true, y_proba):.3f})"
+        )
+        ax1.plot([0, 1], [0, 1], color="navy")
         ax1.set_xlabel("FPR")
         ax1.set_ylabel("TPR")
-        ax1.set_xlim((0,1))
-        ax1.set_ylim((0,1.001))
+        ax1.set_xlim((0, 1))
+        ax1.set_ylim((0, 1.001))
         ax1.legend(loc=4)
         ax1.grid(alpha=0.15)
         ax1.set_title(f"{label.upper()} - ROC", fontsize=13)
 
         precision, recall, _ = precision_recall_curve(y_true, y_proba)
         ax2.plot(
-            recall, precision, color="red",
-            label=f"(AUC = {average_precision_score(y_true, y_proba):.3f}"
+            recall,
+            precision,
+            color="red",
+            label=f"(AUC = {average_precision_score(y_true, y_proba):.3f}",
         )
         ax2.set_xlabel("Recall")
         ax2.set_ylabel("Precision")
-        ax2.set_xlim((0,1))
-        ax2.set_ylim((0,1.001))
+        ax2.set_xlim((0, 1))
+        ax2.set_ylim((0, 1.001))
         ax2.legend(loc=4)
         ax2.grid(alpha=0.15)
         ax2.set_title(f"{label.upper()} - Precision-Recall", fontsize=13)
@@ -290,17 +298,23 @@ class TrainingOrchestrator(object):
         if self._save_eval_artifacts:
             fig.savefig(os.path.join(self._eval_artifacts_path, f"roc_pr_{label}.png"))
 
-
-    def _plot_distribution(self, y_true: np.ndarray, scores: np.ndarray, label: str) -> None:
-        df = pd.DataFrame({
-            "Label": y_true,
-            "Predicted Score": scores
-        })
+    def _plot_distribution(
+        self, y_true: np.ndarray, scores: np.ndarray, label: str
+    ) -> None:
+        df = pd.DataFrame({"Label": y_true, "Predicted Score": scores})
         default = df[df.Label == 1.0]
         non_default = df[df.Label == 0.0]
         fig, ax = plt.subplots(1, 1, figsize=(15, 4))
-        sns.distplot(default["Predicted Score"], bins=30, label="Default", color="red", ax=ax)
-        sns.distplot(non_default["Predicted Score"], bins=30, label="Non-Default", color="blue", ax=ax)
+        sns.distplot(
+            default["Predicted Score"], bins=30, label="Default", color="red", ax=ax
+        )
+        sns.distplot(
+            non_default["Predicted Score"],
+            bins=30,
+            label="Non-Default",
+            color="blue",
+            ax=ax,
+        )
         ax.set_xlabel("Credit Score")
         ax.grid(alpha=0.15)
         ax.legend()
@@ -308,104 +322,89 @@ class TrainingOrchestrator(object):
         plt.show()
 
         if self._save_eval_artifacts:
-            fig.savefig(os.path.join(self._eval_artifacts_path, f"distribution_{label}.png"))
+            fig.savefig(
+                os.path.join(self._eval_artifacts_path, f"distribution_{label}.png")
+            )
 
     def _get_bands(
-        self,
-        score_min: float,
-        score_max: float,
-        step: float = 20 / np.log(2)
+        self, score_min: float, score_max: float, step: float = 20 / np.log(2)
     ) -> List[Tuple[float]]:
-        limits = np.arange(
-            score_min, score_max, step, dtype=np.int32
-        )
+        limits = np.arange(score_min, score_max, step, dtype=np.int32)
         limits = np.concatenate((limits, np.array([score_max])), axis=0)
-        return list(
-            zip(
-                limits,
-                limits[1:]
-            )
-        )
+        return list(zip(limits, limits[1:]))
 
     def _assign_bands(
-        self,
-        scores: np.ndarray,
-        true_labels: np.ndarray
+        self, scores: np.ndarray, true_labels: np.ndarray
     ) -> pd.DataFrame:
-        df = pd.DataFrame({
-            "Score": scores,
-            "Default": true_labels
-        })
+        df = pd.DataFrame({"Score": scores, "Default": true_labels})
         score_min = np.int32(scores.min())
         score_max = np.int32(scores.max())
         bands = self._get_bands(
             score_min=(score_min - score_min % 10),
-            score_max=(score_max + (10 - score_max % 10))
+            score_max=(score_max + (10 - score_max % 10)),
         )
         df["Band"] = np.nan
         for i, (lower, upper) in enumerate(bands):
             right = ")"
-            if i == len(bands)-1:
+            if i == len(bands) - 1:
                 right = "]"
             df.loc[
-                (df.Score >= lower) & (df.Score < upper),
-                "Band"
+                (df.Score >= lower) & (df.Score < upper), "Band"
             ] = f"[{lower}, {upper}{right}"
         return df
 
     def _run_band_analysis(
-        self,
-        scores: np.ndarray,
-        true_labels: np.ndarray
+        self, scores: np.ndarray, true_labels: np.ndarray
     ) -> pd.DataFrame:
         df = self._assign_bands(scores, true_labels)
-        df_ = df.groupby("Band").agg({
-            "Score": "count",
-            "Default": "sum"
-        }).rename(columns={
-            "Score": "Band Size",
-            "Default": "# Default"
-        })
+        df_ = (
+            df.groupby("Band")
+            .agg({"Score": "count", "Default": "sum"})
+            .rename(columns={"Score": "Band Size", "Default": "# Default"})
+        )
         df_["# Default"] = df_["# Default"].astype(int)
         df_["cumulative_size"] = df_["Band Size"].cumsum()
         df_["cumulative_true_positive"] = df_["# Default"].cumsum()
-        
+
         # % TOTAL
         df_["% Total Population"] = np.round(
             df_["cumulative_size"] / df_["cumulative_size"].iloc[-1], 4
         )
-        
+
         # BAND PRECISION
-        df_["Band Precision"] = np.round(
-            df_["# Default"] / df_["Band Size"], 2
-        )
-        
+        df_["Band Precision"] = np.round(df_["# Default"] / df_["Band Size"], 2)
+
         # CUMULATIVE PRECISION
         df_["Cumulative Precision"] = np.round(
             df_["cumulative_true_positive"] / df_["cumulative_size"], 2
         )
-        
+
         # CUMULATIVE RECALL
         df_["Cumulative Recall"] = np.round(
-            df_["cumulative_true_positive"] / df_["cumulative_true_positive"].iloc[-1], 2
+            df_["cumulative_true_positive"] / df_["cumulative_true_positive"].iloc[-1],
+            2,
         )
-        
+
         # CUMULATIVE F1-SCORE
         df_["Cumulative F1-Score"] = np.round(
-            2 * df_["Cumulative Recall"] * df_["Cumulative Precision"] / (
-                df_["Cumulative Recall"] + df_["Cumulative Precision"]
-            ), 2
+            2
+            * df_["Cumulative Recall"]
+            * df_["Cumulative Precision"]
+            / (df_["Cumulative Recall"] + df_["Cumulative Precision"]),
+            2,
         )
-        
-        return df_[[
-            "Band Size",
-            "# Default",
-            "% Total Population",
-            "Band Precision",
-            "Cumulative Precision",
-            "Cumulative Recall",
-            "Cumulative F1-Score"
-        ]]
+
+        return df_[
+            [
+                "Band Size",
+                "# Default",
+                "% Total Population",
+                "Band Precision",
+                "Cumulative Precision",
+                "Cumulative Recall",
+                "Cumulative F1-Score",
+            ]
+        ]
 
     def fit(
         self, df: pd.DataFrame
@@ -422,9 +421,11 @@ class TrainingOrchestrator(object):
         self._fitted = True
         return self._model
 
-    def evaluate_performance(self, df: pd.DataFrame, label: str, threshold: float) -> Tuple[Dict[str, float], pd.DataFrame]:
+    def evaluate_performance(
+        self, df: pd.DataFrame, label: str, threshold: float
+    ) -> Tuple[Dict[str, float], pd.DataFrame]:
         if not self._fitted:
-            raise ValueError
+            raise ModelNotFitted("Model needs to be fitted first!")
 
         df_ = self._preprocess_data(df.copy())
         X, y = self._get_features_and_targets(df_)
@@ -443,7 +444,4 @@ class TrainingOrchestrator(object):
         # BANDS
         df_bands = self._run_band_analysis(scores, y)
 
-        return (
-            metrics, df_bands
-        )
-
+        return (metrics, df_bands)

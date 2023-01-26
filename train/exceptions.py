@@ -12,3 +12,7 @@ class InvalidBucketName(Exception):
 
 class MissingCredentials(Exception):
     pass
+
+
+class ModelNotFitted(Exception):
+    pass

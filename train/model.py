@@ -240,6 +240,11 @@ class TrainingOrchestrator(object):
             )
         return self._model
 
+    def _convert_probabilities_to_score(self, y_proba: np.ndarray) -> np.ndarray:
+        double_decrease_factor = 20 / np.log(2)
+        constant = 600 - np.log(50) * double_decrease_factor
+        return constant - np.log(y_proba / (1 - y_proba)) * double_decrease_factor
+
     def _get_metrics(self, y_proba: np.ndarray, y_true: pd.Series, threshold: float = 0.5) -> Dict[str, float]:
         y_pred = (y_proba > threshold) * 1.0
         recall = recall_score(y_true, y_pred)
@@ -286,8 +291,24 @@ class TrainingOrchestrator(object):
             fig.savefig(os.path.join(self._eval_artifacts_path, f"roc_pr_{label}.png"))
 
 
-    def _plot_distribution(self) -> None:
-        pass
+    def _plot_distribution(self, y_true: np.ndarray, scores: np.ndarray, label: str) -> None:
+        df = pd.DataFrame({
+            "Label": y_true,
+            "Predicted Score": scores
+        })
+        default = df[df.Label == 1.0]
+        non_default = df[df.Label == 0.0]
+        fig, ax = plt.subplots(1, 1, figsize=(15, 4))
+        sns.distplot(default["Predicted Score"], bins=30, label="Default", color="red", ax=ax)
+        sns.distplot(non_default["Predicted Score"], bins=30, label="Non-Default", color="blue", ax=ax)
+        ax.set_xlabel("Credit Score")
+        ax.grid(alpha=0.15)
+        ax.legend()
+        ax.set_title(f"{label.upper()} - Score Distribution", fontsize=13)
+        plt.show()
+
+        if self._save_eval_artifacts:
+            fig.savefig(os.path.join(self._eval_artifacts_path, f"distribution_{label}.png"))
 
     def _generate_band_analysis(self) -> None:
         pass

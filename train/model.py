@@ -310,8 +310,102 @@ class TrainingOrchestrator(object):
         if self._save_eval_artifacts:
             fig.savefig(os.path.join(self._eval_artifacts_path, f"distribution_{label}.png"))
 
-    def _generate_band_analysis(self) -> None:
-        pass
+    def _get_bands(
+        self,
+        score_min: float,
+        score_max: float,
+        step: float = 20 / np.log(2)
+    ) -> List[Tuple[float]]:
+        limits = np.arange(
+            score_min, score_max, step, dtype=np.int32
+        )
+        limits = np.concatenate((limits, np.array([score_max])), axis=0)
+        return list(
+            zip(
+                limits,
+                limits[1:]
+            )
+        )
+
+    def _assign_bands(
+        self,
+        scores: np.ndarray,
+        true_labels: np.ndarray
+    ) -> pd.DataFrame:
+        df = pd.DataFrame({
+            "Score": scores,
+            "Default": true_labels
+        })
+        score_min = np.int32(scores.min())
+        score_max = np.int32(scores.max())
+        bands = self._get_bands(
+            score_min=(score_min - score_min % 10),
+            score_max=(score_max + (10 - score_max % 10))
+        )
+        df["Band"] = np.nan
+        for i, (lower, upper) in enumerate(bands):
+            right = ")"
+            if i == len(bands)-1:
+                right = "]"
+            df.loc[
+                (df.Score >= lower) & (df.Score < upper),
+                "Band"
+            ] = f"[{lower}, {upper}{right}"
+        return df
+
+    def _run_band_analysis(
+        self,
+        scores: np.ndarray,
+        true_labels: np.ndarray
+    ) -> pd.DataFrame:
+        df = self._assign_bands(scores, true_labels)
+        df_ = df.groupby("Band").agg({
+            "Score": "count",
+            "Default": "sum"
+        }).rename(columns={
+            "Score": "Band Size",
+            "Default": "# Default"
+        })
+        df_["# Default"] = df_["# Default"].astype(int)
+        df_["cumulative_size"] = df_["Band Size"].cumsum()
+        df_["cumulative_true_positive"] = df_["# Default"].cumsum()
+        
+        # % TOTAL
+        df_["% Total Population"] = np.round(
+            df_["cumulative_size"] / df_["cumulative_size"].iloc[-1], 4
+        )
+        
+        # BAND PRECISION
+        df_["Band Precision"] = np.round(
+            df_["# Default"] / df_["Band Size"], 2
+        )
+        
+        # CUMULATIVE PRECISION
+        df_["Cumulative Precision"] = np.round(
+            df_["cumulative_true_positive"] / df_["cumulative_size"], 2
+        )
+        
+        # CUMULATIVE RECALL
+        df_["Cumulative Recall"] = np.round(
+            df_["cumulative_true_positive"] / df_["cumulative_true_positive"].iloc[-1], 2
+        )
+        
+        # CUMULATIVE F1-SCORE
+        df_["Cumulative F1-Score"] = np.round(
+            2 * df_["Cumulative Recall"] * df_["Cumulative Precision"] / (
+                df_["Cumulative Recall"] + df_["Cumulative Precision"]
+            ), 2
+        )
+        
+        return df_[[
+            "Band Size",
+            "# Default",
+            "% Total Population",
+            "Band Precision",
+            "Cumulative Precision",
+            "Cumulative Recall",
+            "Cumulative F1-Score"
+        ]]
 
     def fit(
         self, df: pd.DataFrame
@@ -328,5 +422,28 @@ class TrainingOrchestrator(object):
         self._fitted = True
         return self._model
 
-    def evaluate_performance(self) -> None:
-        pass
+    def evaluate_performance(self, df: pd.DataFrame, label: str, threshold: float) -> Tuple[Dict[str, float], pd.DataFrame]:
+        if not self._fitted:
+            raise ValueError
+
+        df_ = self._preprocess_data(df.copy())
+        X, y = self._get_features_and_targets(df_)
+
+        # PREDICTIONS
+        y_proba = self._get_model().predict(X)
+        scores = self._convert_probabilities_to_score(y_proba)
+
+        # METRICS
+        metrics = self._get_metrics(y_proba, y, threshold=threshold)
+
+        # CURVES
+        self._plot_curves(y_proba, y, label)
+        self._plot_distribution(y_proba, scores, label)
+
+        # BANDS
+        df_bands = self._run_band_analysis(scores, y)
+
+        return (
+            metrics, df_bands
+        )
+

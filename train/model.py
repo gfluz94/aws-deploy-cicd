@@ -333,13 +333,16 @@ class TrainingOrchestrator(object):
             "AVERAGE PRECISION": avg_p,
         }
 
-    def _plot_curves(self, y_proba: np.ndarray, y_true: pd.Series, label: str) -> None:
+    def _plot_curves(
+        self, y_proba: np.ndarray, y_true: pd.Series, label: str, show_viz: bool = False
+    ) -> None:
         """Method to plot ROC and PR curves for classifier evaluation.
 
         Args:
             y_proba (np.ndarray): Array containing probabilities predicted by the model
             y_true (pd.Series): Array containing true label values
             label (str): Label to be displayed on titles (train, test)
+            show_viz (bool, optional): Whether or not visualizations should be displayed on screen. Defaults to False.
         """
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 4), sharey=True)
         fpr, tpr, _ = roc_curve(y_true, y_proba)
@@ -369,13 +372,14 @@ class TrainingOrchestrator(object):
         ax2.legend(loc=4)
         ax2.grid(alpha=0.15)
         ax2.set_title(f"{label.upper()} - Precision-Recall", fontsize=13)
-        plt.show()
+        if show_viz:
+            plt.show()
 
         if self._save_eval_artifacts:
             fig.savefig(os.path.join(self._eval_artifacts_path, f"roc_pr_{label}.png"))
 
     def _plot_distribution(
-        self, y_true: np.ndarray, scores: np.ndarray, label: str
+        self, y_true: np.ndarray, scores: np.ndarray, label: str, show_viz: bool = False
     ) -> None:
         """Method to plot score distributions for positive and negative classes
 
@@ -383,6 +387,7 @@ class TrainingOrchestrator(object):
             y_true (pd.Series): Array containing true label values
             scores (np.ndarray): Predicted credit scores
             label (str): Label to be displayed on titles (train, test)
+            show_viz (bool, optional): Whether or not visualizations should be displayed on screen. Defaults to False.
         """
         df = pd.DataFrame({"Label": y_true, "Predicted Score": scores})
         default = df[df.Label == 1.0]
@@ -402,7 +407,8 @@ class TrainingOrchestrator(object):
         ax.grid(alpha=0.15)
         ax.legend()
         ax.set_title(f"{label.upper()} - Score Distribution", fontsize=13)
-        plt.show()
+        if show_viz:
+            plt.show()
 
         if self._save_eval_artifacts:
             fig.savefig(
@@ -542,13 +548,14 @@ class TrainingOrchestrator(object):
         return self._model
 
     def evaluate_performance(
-        self, df: pd.DataFrame, threshold: float
+        self, df: pd.DataFrame, threshold: float, show_viz: bool = False
     ) -> Tuple[Dict[str, float], pd.DataFrame]:
         """Method to run full performance evaluation for recently trained model.
 
         Args:
             df (pd.DataFrame): Raw input data from database
-            threshold (float): Classification threshold for metric computation. Defaults to 0.5.
+            threshold (float): Classification threshold for metric computation.
+            show_viz (bool, optional): Whether or not visualizations should be displayed on screen. Defaults to False.
 
         Raises:
             ModelNotFitted: Raised when model hasn't been fitted yet
@@ -575,10 +582,10 @@ class TrainingOrchestrator(object):
         metrics_test = self._get_metrics(y_proba_test, y_test, threshold=threshold)
 
         # CURVES
-        self._plot_curves(y_proba_train, y_train, label="train")
-        self._plot_curves(y_proba_test, y_test, label="test")
-        self._plot_distribution(y_train, scores_train, label="train")
-        self._plot_distribution(y_test, scores_test, label="test")
+        self._plot_curves(y_proba_train, y_train, label="train", show_viz=show_viz)
+        self._plot_curves(y_proba_test, y_test, label="test", show_viz=show_viz)
+        self._plot_distribution(y_train, scores_train, label="train", show_viz=show_viz)
+        self._plot_distribution(y_test, scores_test, label="test", show_viz=show_viz)
 
         # BANDS
         df_bands_train = self._run_band_analysis(scores_train, y_train)

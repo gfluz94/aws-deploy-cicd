@@ -26,7 +26,7 @@ from sklearn.metrics import (
 from sklearn.calibration import CalibratedClassifierCV
 import xgboost
 
-from exceptions import ModelNotFitted
+from train.exceptions import ModelNotFitted
 
 
 class TrainingOrchestrator(object):

@@ -5,7 +5,7 @@ import pandas as pd
 import logging
 
 logging.basicConfig(
-    level=logging.DEBUG, format="[%(asctime)s] %(levelname)s - %(message)s"
+    level=logging.INFO, format="[%(asctime)s] %(levelname)s - %(message)s"
 )
 logger = logging.getLogger()
 
@@ -295,7 +295,7 @@ if __name__ == "__main__":
     (train_metrics, train_bands), (
         test_metrics,
         test_bands,
-    ) = training_orchestrator.evaluate_performance(df, threshold=0.50)
+    ) = training_orchestrator.evaluate_performance(df, threshold=0.50, show_viz=args.verbose)
     if args.verbose:
         logger.info("Performance evaluation finished!")
 

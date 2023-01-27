@@ -26,7 +26,7 @@ from sklearn.metrics import (
 from sklearn.calibration import CalibratedClassifierCV
 import xgboost
 
-from exceptions import ModelNotFitted
+from train.exceptions import ModelNotFitted
 
 
 class TrainingOrchestrator(object):
@@ -99,57 +99,78 @@ class TrainingOrchestrator(object):
 
     @property
     def target_col_name(self) -> str:
+        """(str) Name of the target variable in the dataframe."""
         return self._target_col_name
 
     @property
     def unique_id_col_name(self) -> str:
+        """(str) Name of the ID field in the dataframe"""
         return self._unique_id_col_name
 
     @property
     def selected_cols(self) -> List[str]:
+        """(List[str]) List of selected features for the model"""
         return self._selected_cols
 
     @property
     def log_transform_cols(self) -> List[str]:
+        """(List[str]) List of features to which we must apply log1p"""
         return self._log_transform_cols
 
     @property
     def merchant_groups(self) -> List[str]:
+        """(List[str]) List of considered entries for `merchant group`"""
         return self._merchant_groups
 
     @property
     def test_set_size(self) -> float:
+        """(float) Percentage of fataframe to be used as test set (0-1)"""
         return self._test_set_size
 
     @property
     def calibrate(self) -> bool:
+        """(bool) Whether or not xgboost model should have its probabilities calibrated"""
         return self._calibrate
 
     @property
     def n_folds(self) -> int:
+        """(int) Number of folds to be used for calibration, if `calibrate` is set to True"""
         return self._n_folds
 
     @property
     def xgboost_parameters(self) -> Dict[str, Union[int, float]]:
+        """(Dict[str, Union[int, float]]) XGBoost's parameters for training"""
         return self._xgboost_parameters
 
     @property
     def save_eval_artifacts(self) -> bool:
+        """(bool) Whether or not evaluation outputs should be saved. Defaults to False."""
         return self._save_eval_artifacts
 
     @property
     def eval_artifacts_path(self) -> str:
+        """(str) Path to where evaluation artifacts should be dumped. Defaults to "../media/"."""
         return self._eval_artifacts_path
 
     @property
     def verbose(self) -> str:
+        """(str) Whether or not logging information should be displayed. Defaults to False."""
         return self._verbose
 
     @property
     def random_seed(self) -> int:
+        """(int) Seed to ensure reproducibility. Defaults to 99."""
         return self._random_seed
 
     def _get_feature_groups(self, df: pd.DataFrame) -> Dict[str, List[str]]:
+        """Method to aggregate features into groups according to their types
+
+        Args:
+            df (pd.DataFrame): Dataframe containing features and target variables
+
+        Returns:
+            Dict[str, List[str]]: Variable type and corresponding list of features
+        """
         all_fields = list(
             filter(
                 lambda x: x not in [self._target_col_name, self._unique_id_col_name],
@@ -179,6 +200,14 @@ class TrainingOrchestrator(object):
         }
 
     def _preprocess_data(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Method to preprocess the data before feeding it to the model
+
+        Args:
+            df (pd.DataFrame): Dataframe containing features and target variables
+
+        Returns:
+            pd.DataFrame: Dataframe with expected transformations
+        """
         # DROP MISSING TAREGT
         df = df.dropna(subset=[self._target_col_name])
 
@@ -217,6 +246,14 @@ class TrainingOrchestrator(object):
         return df
 
     def _split_data(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
+        """Method to split the data into training and test sets
+
+        Args:
+            df (pd.DataFrame): Dataframe containing features and target variables
+
+        Returns:
+            Tuple[pd.DataFrame, pd.DataFrame]: Train set and test set
+        """
         return train_test_split(
             df, test_size=self._test_set_size, random_state=self._random_seed
         )
@@ -224,12 +261,25 @@ class TrainingOrchestrator(object):
     def _get_features_and_targets(
         self, df: pd.DataFrame
     ) -> Tuple[pd.DataFrame, pd.Series]:
+        """Method to split dataset into features and target variable
+
+        Args:
+            df (pd.DataFrame): Dataframe containing features and target variables
+
+        Returns:
+            Tuple[pd.DataFrame, pd.Series]: Feature set and target variable
+        """
         return (
             df.drop(columns=[self._unique_id_col_name, self._target_col_name]),
             df[self._target_col_name],
         )
 
     def _get_model(self) -> Union[xgboost.XGBClassifier, CalibratedClassifierCV]:
+        """Method to return the model as a singleton
+
+        Returns:
+            Union[xgboost.XGBClassifier, CalibratedClassifierCV]: Model trained or instantiated for training
+        """
         if self._fitted:
             return self._model
         self._model = xgboost.XGBClassifier(
@@ -243,6 +293,14 @@ class TrainingOrchestrator(object):
         return self._model
 
     def _convert_probabilities_to_score(self, y_proba: np.ndarray) -> np.ndarray:
+        """Method to convert probabilities into credit scores
+
+        Args:
+            y_proba (np.ndarray): Array containing output probabilities
+
+        Returns:
+            np.ndarray: Array containing corresponding credit scores
+        """
         double_decrease_factor = 20 / np.log(2)
         constant = 600 - np.log(50) * double_decrease_factor
         return constant - np.log(y_proba / (1 - y_proba)) * double_decrease_factor
@@ -250,6 +308,17 @@ class TrainingOrchestrator(object):
     def _get_metrics(
         self, y_proba: np.ndarray, y_true: pd.Series, threshold: float = 0.5
     ) -> Dict[str, float]:
+        """Method to return dictionary with classification metrics.
+        (Recall, Precision, F1-Score, ROC-AUC, Average Precision)
+
+        Args:
+            y_proba (np.ndarray): Array containing probabilities predicted by the model
+            y_true (pd.Series): Array containing true label values
+            threshold (float, optional): Classification threshold for metric computation. Defaults to 0.5.
+
+        Returns:
+            Dict[str, float]: Metric name and corresponding metric value
+        """
         y_pred = (y_proba > threshold) * 1.0
         recall = recall_score(y_true, y_pred)
         precision = precision_score(y_true, y_pred)
@@ -264,7 +333,17 @@ class TrainingOrchestrator(object):
             "AVERAGE PRECISION": avg_p,
         }
 
-    def _plot_curves(self, y_proba: np.ndarray, y_true: pd.Series, label: str) -> None:
+    def _plot_curves(
+        self, y_proba: np.ndarray, y_true: pd.Series, label: str, show_viz: bool = False
+    ) -> None:
+        """Method to plot ROC and PR curves for classifier evaluation.
+
+        Args:
+            y_proba (np.ndarray): Array containing probabilities predicted by the model
+            y_true (pd.Series): Array containing true label values
+            label (str): Label to be displayed on titles (train, test)
+            show_viz (bool, optional): Whether or not visualizations should be displayed on screen. Defaults to False.
+        """
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 4), sharey=True)
         fpr, tpr, _ = roc_curve(y_true, y_proba)
         ax1.plot(
@@ -293,14 +372,23 @@ class TrainingOrchestrator(object):
         ax2.legend(loc=4)
         ax2.grid(alpha=0.15)
         ax2.set_title(f"{label.upper()} - Precision-Recall", fontsize=13)
-        plt.show()
+        if show_viz:
+            plt.show()
 
         if self._save_eval_artifacts:
             fig.savefig(os.path.join(self._eval_artifacts_path, f"roc_pr_{label}.png"))
 
     def _plot_distribution(
-        self, y_true: np.ndarray, scores: np.ndarray, label: str
+        self, y_true: np.ndarray, scores: np.ndarray, label: str, show_viz: bool = False
     ) -> None:
+        """Method to plot score distributions for positive and negative classes
+
+        Args:
+            y_true (pd.Series): Array containing true label values
+            scores (np.ndarray): Predicted credit scores
+            label (str): Label to be displayed on titles (train, test)
+            show_viz (bool, optional): Whether or not visualizations should be displayed on screen. Defaults to False.
+        """
         df = pd.DataFrame({"Label": y_true, "Predicted Score": scores})
         default = df[df.Label == 1.0]
         non_default = df[df.Label == 0.0]
@@ -319,7 +407,8 @@ class TrainingOrchestrator(object):
         ax.grid(alpha=0.15)
         ax.legend()
         ax.set_title(f"{label.upper()} - Score Distribution", fontsize=13)
-        plt.show()
+        if show_viz:
+            plt.show()
 
         if self._save_eval_artifacts:
             fig.savefig(
@@ -329,6 +418,16 @@ class TrainingOrchestrator(object):
     def _get_bands(
         self, score_min: float, score_max: float, step: float = 20 / np.log(2)
     ) -> List[Tuple[float]]:
+        """Method to compute band lower and upper bounds.
+
+        Args:
+            score_min (float): Minimum score value for bands
+            score_max (float): Maximum score value for bands
+            step (float, optional): Band score width. Defaults to (20 / log(2)).
+
+        Returns:
+            List[Tuple[float]]: List of (lower, upper) values for each band
+        """
         limits = np.arange(score_min, score_max, step, dtype=np.int32)
         limits = np.concatenate((limits, np.array([score_max])), axis=0)
         return list(zip(limits, limits[1:]))
@@ -336,6 +435,15 @@ class TrainingOrchestrator(object):
     def _assign_bands(
         self, scores: np.ndarray, true_labels: np.ndarray
     ) -> pd.DataFrame:
+        """Method to assign score band for each scored individual
+
+        Args:
+            scores (np.ndarray): Predicted credit scores
+            true_labels (np.ndarray): Array containing true label values
+
+        Returns:
+            pd.DataFrame: Dataframe containing band, credit score, and true labels
+        """
         df = pd.DataFrame({"Score": scores, "Default": true_labels})
         score_min = np.int32(scores.min())
         score_max = np.int32(scores.max())
@@ -356,6 +464,16 @@ class TrainingOrchestrator(object):
     def _run_band_analysis(
         self, scores: np.ndarray, true_labels: np.ndarray
     ) -> pd.DataFrame:
+        """Method to generate band analysis dataframe, with evaluation metrics within each band.
+        This is a common tool for evaluating classification models, since we can understand scores and come up with proper rules.
+
+        Args:
+            scores (np.ndarray): Predicted credit scores
+            true_labels (np.ndarray): Array containing true label values
+
+        Returns:
+            pd.DataFrame: Dataframe containing evaluation metrics within bands
+        """
         df = self._assign_bands(scores, true_labels)
         df_ = (
             df.groupby("Band")
@@ -409,6 +527,14 @@ class TrainingOrchestrator(object):
     def fit(
         self, df: pd.DataFrame
     ) -> Union[xgboost.XGBClassifier, CalibratedClassifierCV]:
+        """Method to fit the estimator
+
+        Args:
+            df (pd.DataFrame): Raw input data from database
+
+        Returns:
+            Union[xgboost.XGBClassifier, CalibratedClassifierCV]: Trained classifier
+        """
         # PREPROCESS
         df_ = self._preprocess_data(df.copy())
 
@@ -422,26 +548,47 @@ class TrainingOrchestrator(object):
         return self._model
 
     def evaluate_performance(
-        self, df: pd.DataFrame, label: str, threshold: float
+        self, df: pd.DataFrame, threshold: float, show_viz: bool = False
     ) -> Tuple[Dict[str, float], pd.DataFrame]:
+        """Method to run full performance evaluation for recently trained model.
+
+        Args:
+            df (pd.DataFrame): Raw input data from database
+            threshold (float): Classification threshold for metric computation.
+            show_viz (bool, optional): Whether or not visualizations should be displayed on screen. Defaults to False.
+
+        Raises:
+            ModelNotFitted: Raised when model hasn't been fitted yet
+
+        Returns:
+            Tuple[Tuple[Dict[str, float], pd.DataFrame]]: Metrics dictionary and band analysis dataframe for (train, test) sets
+        """
         if not self._fitted:
             raise ModelNotFitted("Model needs to be fitted first!")
 
         df_ = self._preprocess_data(df.copy())
-        X, y = self._get_features_and_targets(df_)
+        df_train, df_test = self._split_data(df_)
+        X_train, y_train = self._get_features_and_targets(df_train)
+        X_test, y_test = self._get_features_and_targets(df_test)
 
         # PREDICTIONS
-        y_proba = self._get_model().predict(X)
-        scores = self._convert_probabilities_to_score(y_proba)
+        y_proba_train = self._get_model().predict(X_train)
+        scores_train = self._convert_probabilities_to_score(y_proba_train)
+        y_proba_test = self._get_model().predict(X_test)
+        scores_test = self._convert_probabilities_to_score(y_proba_test)
 
         # METRICS
-        metrics = self._get_metrics(y_proba, y, threshold=threshold)
+        metrics_train = self._get_metrics(y_proba_train, y_train, threshold=threshold)
+        metrics_test = self._get_metrics(y_proba_test, y_test, threshold=threshold)
 
         # CURVES
-        self._plot_curves(y_proba, y, label)
-        self._plot_distribution(y_proba, scores, label)
+        self._plot_curves(y_proba_train, y_train, label="train", show_viz=show_viz)
+        self._plot_curves(y_proba_test, y_test, label="test", show_viz=show_viz)
+        self._plot_distribution(y_train, scores_train, label="train", show_viz=show_viz)
+        self._plot_distribution(y_test, scores_test, label="test", show_viz=show_viz)
 
         # BANDS
-        df_bands = self._run_band_analysis(scores, y)
+        df_bands_train = self._run_band_analysis(scores_train, y_train)
+        df_bands_test = self._run_band_analysis(scores_test, y_test)
 
-        return (metrics, df_bands)
+        return (metrics_train, df_bands_train), (metrics_test, df_bands_test)

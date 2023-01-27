@@ -299,8 +299,6 @@ if __name__ == "__main__":
     if args.verbose:
         logger.info("Performance evaluation finished!")
 
-    #TODO
     #EXPORT PRINT BANDS/METRICS
 
-    #TODO
     #EXPORT MODEL TO S3

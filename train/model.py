@@ -208,6 +208,8 @@ class TrainingOrchestrator(object):
         Returns:
             pd.DataFrame: Dataframe with expected transformations
         """
+        if self._verbose:
+            logger.info("Preprocessing input data...")
         # DROP MISSING TAREGT
         df = df.dropna(subset=[self._target_col_name])
 
@@ -224,7 +226,7 @@ class TrainingOrchestrator(object):
         # REPLACE ALL STATUS WITH SINGLE ONE FOR ENTIRE PERIOD
         status_cols = filter(lambda x: x.startswith("account_worst_status"), df.columns)
         df["account_worst_status_all"] = np.max(df.loc[:, status_cols], axis=1)
-        df = df.drop(columns=[status_cols])
+        df = df.drop(columns=list(status_cols))
 
         # CONVERT BOOLEAN
         df[feature_groups["bool"]] = df[feature_groups["bool"]].astype(int)
@@ -243,6 +245,9 @@ class TrainingOrchestrator(object):
             df[cat] = (df[merchant_group_column] == cat).astype(float)
         df = df.drop(columns=[merchant_group_column])
 
+        if self._verbose:
+            logger.info("Preprocessing completed!")
+
         return df
 
     def _split_data(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
@@ -255,7 +260,10 @@ class TrainingOrchestrator(object):
             Tuple[pd.DataFrame, pd.DataFrame]: Train set and test set
         """
         return train_test_split(
-            df, test_size=self._test_set_size, random_state=self._random_seed
+            df,
+            test_size=self._test_set_size,
+            random_state=self._random_seed,
+            stratify=df[self._target_col_name],
         )
 
     def _get_features_and_targets(
@@ -282,14 +290,20 @@ class TrainingOrchestrator(object):
         """
         if self._fitted:
             return self._model
+        if self._verbose:
+            logger.info("Instantiating XGBoost model...")
         self._model = xgboost.XGBClassifier(
             objective="binary:logistic", seed=self._random_seed
         )
-        self._model.set_params(self._xgboost_parameters)
+        self._model.set_params(**self._xgboost_parameters)
         if self._calibrate:
             self._model = CalibratedClassifierCV(
                 self._model, method="sigmoid", cv=self._n_folds
             )
+            if self._verbose:
+                logger.info("Calibration layer added!")
+        if self._verbose:
+            logger.info("XGBoost model defined!")
         return self._model
 
     def _convert_probabilities_to_score(self, y_proba: np.ndarray) -> np.ndarray:
@@ -303,6 +317,7 @@ class TrainingOrchestrator(object):
         """
         double_decrease_factor = 20 / np.log(2)
         constant = 600 - np.log(50) * double_decrease_factor
+        y_proba = np.clip(y_proba, 1e-8, 0.99999999)
         return constant - np.log(y_proba / (1 - y_proba)) * double_decrease_factor
 
     def _get_metrics(
@@ -322,7 +337,11 @@ class TrainingOrchestrator(object):
         y_pred = (y_proba > threshold) * 1.0
         recall = recall_score(y_true, y_pred)
         precision = precision_score(y_true, y_pred)
-        f1 = 2 * recall * precision / (recall + precision)
+        f1 = (
+            None
+            if (recall + precision) == 0
+            else 2 * recall * precision / (recall + precision)
+        )
         auc = roc_auc_score(y_true, y_proba)
         avg_p = average_precision_score(y_true, y_proba)
         return {
@@ -543,8 +562,12 @@ class TrainingOrchestrator(object):
         X_train, y_train = self._get_features_and_targets(df_train)
 
         # FIT MODEL
+        if self._verbose:
+            logger.info("Start training...")
         self._model = self._get_model().fit(X_train, y_train)
         self._fitted = True
+        if self._verbose:
+            logger.info("XGBoost classifiter fitted!")
         return self._model
 
     def evaluate_performance(
@@ -566,6 +589,8 @@ class TrainingOrchestrator(object):
         if not self._fitted:
             raise ModelNotFitted("Model needs to be fitted first!")
 
+        if self._verbose:
+            logger.info("Preparing data for prediction and evaluation...")
         df_ = self._preprocess_data(df.copy())
         df_train, df_test = self._split_data(df_)
         X_train, y_train = self._get_features_and_targets(df_train)
@@ -576,18 +601,26 @@ class TrainingOrchestrator(object):
         scores_train = self._convert_probabilities_to_score(y_proba_train)
         y_proba_test = self._get_model().predict(X_test)
         scores_test = self._convert_probabilities_to_score(y_proba_test)
+        if self._verbose:
+            logger.info("Probabilities and scores generated!")
 
         # METRICS
+        if self._verbose:
+            logger.info("Computing classification metrics...")
         metrics_train = self._get_metrics(y_proba_train, y_train, threshold=threshold)
         metrics_test = self._get_metrics(y_proba_test, y_test, threshold=threshold)
 
         # CURVES
+        if self._verbose:
+            logger.info("Generating visualizations...")
         self._plot_curves(y_proba_train, y_train, label="train", show_viz=show_viz)
         self._plot_curves(y_proba_test, y_test, label="test", show_viz=show_viz)
         self._plot_distribution(y_train, scores_train, label="train", show_viz=show_viz)
         self._plot_distribution(y_test, scores_test, label="test", show_viz=show_viz)
 
         # BANDS
+        if self._verbose:
+            logger.info("Running band analysis...")
         df_bands_train = self._run_band_analysis(scores_train, y_train)
         df_bands_test = self._run_band_analysis(scores_test, y_test)
 

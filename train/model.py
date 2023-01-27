@@ -255,7 +255,10 @@ class TrainingOrchestrator(object):
             Tuple[pd.DataFrame, pd.DataFrame]: Train set and test set
         """
         return train_test_split(
-            df, test_size=self._test_set_size, random_state=self._random_seed
+            df,
+            test_size=self._test_set_size,
+            random_state=self._random_seed,
+            stratify=df[self._target_col_name],
         )
 
     def _get_features_and_targets(
@@ -303,6 +306,7 @@ class TrainingOrchestrator(object):
         """
         double_decrease_factor = 20 / np.log(2)
         constant = 600 - np.log(50) * double_decrease_factor
+        y_proba = np.clip(y_proba, 1e-8, 0.99999999)
         return constant - np.log(y_proba / (1 - y_proba)) * double_decrease_factor
 
     def _get_metrics(
@@ -322,7 +326,11 @@ class TrainingOrchestrator(object):
         y_pred = (y_proba > threshold) * 1.0
         recall = recall_score(y_true, y_pred)
         precision = precision_score(y_true, y_pred)
-        f1 = 2 * recall * precision / (recall + precision)
+        f1 = (
+            None
+            if (recall + precision) == 0
+            else 2 * recall * precision / (recall + precision)
+        )
         auc = roc_auc_score(y_true, y_proba)
         avg_p = average_precision_score(y_true, y_proba)
         return {

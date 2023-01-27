@@ -224,7 +224,7 @@ class TrainingOrchestrator(object):
         # REPLACE ALL STATUS WITH SINGLE ONE FOR ENTIRE PERIOD
         status_cols = filter(lambda x: x.startswith("account_worst_status"), df.columns)
         df["account_worst_status_all"] = np.max(df.loc[:, status_cols], axis=1)
-        df = df.drop(columns=[status_cols])
+        df = df.drop(columns=list(status_cols))
 
         # CONVERT BOOLEAN
         df[feature_groups["bool"]] = df[feature_groups["bool"]].astype(int)
@@ -285,7 +285,7 @@ class TrainingOrchestrator(object):
         self._model = xgboost.XGBClassifier(
             objective="binary:logistic", seed=self._random_seed
         )
-        self._model.set_params(self._xgboost_parameters)
+        self._model.set_params(**self._xgboost_parameters)
         if self._calibrate:
             self._model = CalibratedClassifierCV(
                 self._model, method="sigmoid", cv=self._n_folds

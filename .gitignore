@@ -130,7 +130,6 @@ dmypy.json
 
 # Ignore data
 data/*
-output/*
 !.gitkeep
 
 # DS STORE

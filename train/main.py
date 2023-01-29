@@ -3,13 +3,18 @@ from argparse import ArgumentParser
 from dotenv import load_dotenv
 import pandas as pd
 import logging
+import dill
 
 logging.basicConfig(
-    level=logging.DEBUG, format="[%(asctime)s] %(levelname)s - %(message)s"
+    level=logging.INFO, format="[%(asctime)s] %(levelname)s - %(message)s"
 )
 logger = logging.getLogger()
 
-from aws import fetch_s3_data
+import warnings
+
+warnings.filterwarnings("ignore")
+
+from aws import fetch_s3_data, dump_s3_data
 from model import TrainingOrchestrator
 from exceptions import EnvironmentVariablesMissing
 
@@ -35,18 +40,32 @@ if __name__ == "__main__":
         default="data",
     )
     parser.add_argument(
-        "--s3-data-bucket",
+        "--s3-bucket",
         metavar="N",
         type=str,
-        help="Name of the bucket in AWS S3 where data is currelty stored.",
+        help="Name of the bucket in AWS S3 where data is currently stored.",
         default="data-cicd-gfluz94",
     )
     parser.add_argument(
         "--s3-data-prefix",
         metavar="N",
         type=str,
-        help="Name of the bucket in AWS S3 where data is currelty stored.",
+        help="Prefix within bucket in AWS S3 where data is currently stored.",
         default="data",
+    )
+    parser.add_argument(
+        "--s3-model-prefix",
+        metavar="N",
+        type=str,
+        help="Prefix within bucket in AWS S3 where model is currently stored.",
+        default="model",
+    )
+    parser.add_argument(
+        "--model-name",
+        metavar="N",
+        type=str,
+        help="Name of the exported model file.",
+        default="default_classifier.pkl",
     )
     parser.add_argument(
         "--aws-access-key-env",
@@ -236,19 +255,19 @@ if __name__ == "__main__":
         logger.info("Finding and reading raw data...")
     DATA_FOLDER = os.path.join(os.curdir, args.data_folder)
     FILES_IN_FOLDER = os.listdir(DATA_FOLDER)
+    aws_access_key = os.getenv(key=args.aws_access_key_env)
+    aws_secret_key = os.getenv(key=args.aws_secret_key_env)
     if TARGET_FILE not in FILES_IN_FOLDER:
         if args.verbose:
             logger.info(
                 "Data not found in %s. Downloading from `%s` S3 bucket...",
                 DATA_FOLDER,
-                args.s3_data_bucket,
+                args.s3_bucket,
             )
-        aws_access_key = os.getenv(key=args.aws_access_key_env)
-        aws_secret_key = os.getenv(key=args.aws_secret_key_env)
         if not aws_access_key or not aws_secret_key:
             raise EnvironmentVariablesMissing("AWS Credentials not set accordingly.`")
         fetch_s3_data(
-            bucket_name=args.s3_data_bucket,
+            bucket_name=args.s3_bucket,
             prefix=args.s3_data_prefix,
             filename=TARGET_FILE,
             target_folder=DATA_FOLDER,
@@ -295,10 +314,36 @@ if __name__ == "__main__":
     (train_metrics, train_bands), (
         test_metrics,
         test_bands,
-    ) = training_orchestrator.evaluate_performance(df, threshold=0.50)
+    ) = training_orchestrator.evaluate_performance(
+        df, threshold=0.50, show_viz=args.verbose
+    )
     if args.verbose:
+        logger.info("TRAIN PERFORMANCE")
+        for metric, value in train_metrics.items():
+            logger.info("%s = %s", metric, value)
+        logger.info("TEST PERFORMANCE")
+        for metric, value in test_metrics.items():
+            logger.info("%s = %s", metric, value)
         logger.info("Performance evaluation finished!")
+    if args.save_evaluation_artifacts:
+        train_bands.to_csv(
+            os.path.join(args.evaluation_artifacts_path, "train_bands.csv")
+        )
+        test_bands.to_csv(
+            os.path.join(args.evaluation_artifacts_path, "test_bands.csv")
+        )
 
-    #EXPORT PRINT BANDS/METRICS
-
-    #EXPORT MODEL TO S3
+    if args.verbose:
+        logger.info("Dumping final model to S3...")
+    with open(args.model_name, "wb") as file:
+        dill.dump(model, file)
+    dump_s3_data(
+        local_filepath=args.model_name,
+        bucket_name=args.s3_bucket,
+        prefix=args.s3_model_prefix,
+        aws_access_key=aws_access_key,
+        aws_secret_key=aws_secret_key,
+    )
+    os.remove(args.model_name)
+    if args.verbose:
+        logger.info("Model artifact successfully exported!")

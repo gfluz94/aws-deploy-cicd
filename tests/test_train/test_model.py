@@ -101,7 +101,7 @@ class TestTrainingOrchestrator(object):
                 "Entertainment",
             ],
             test_set_size=1 / 3.0,
-            calibrate=True,
+            calibrate=False,
             n_folds=2,
             xgboost_parameters={"n_estimators": 200},
             save_eval_artifacts=False,

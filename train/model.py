@@ -8,7 +8,7 @@ import seaborn as sns
 import logging
 
 logging.basicConfig(
-    level=logging.DEBUG, format="[%(asctime)s] %(levelname)s - %(message)s"
+    level=logging.INFO, format="[%(asctime)s] %(levelname)s - %(message)s"
 )
 logger = logging.getLogger()
 
@@ -597,9 +597,9 @@ class TrainingOrchestrator(object):
         X_test, y_test = self._get_features_and_targets(df_test)
 
         # PREDICTIONS
-        y_proba_train = self._get_model().predict(X_train)
+        y_proba_train = self._get_model().predict_proba(X_train)[:, 1]
         scores_train = self._convert_probabilities_to_score(y_proba_train)
-        y_proba_test = self._get_model().predict(X_test)
+        y_proba_test = self._get_model().predict_proba(X_test)[:, 1]
         scores_test = self._convert_probabilities_to_score(y_proba_test)
         if self._verbose:
             logger.info("Probabilities and scores generated!")

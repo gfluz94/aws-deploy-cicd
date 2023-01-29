@@ -132,7 +132,7 @@ def train_bands_output() -> pd.DataFrame:
             "Cumulative Recall": [1.0],
             "Cumulative F1-Score": [0.67],
         },
-        index=["[1010, 1020]"],
+        index=["[480, 490]"],
     )
     df.index.name = "Band"
     return df
@@ -155,7 +155,7 @@ def test_bands_output() -> pd.DataFrame:
             "Cumulative Recall": [1.0],
             "Cumulative F1-Score": [0.67],
         },
-        index=["[1010, 1020]"],
+        index=["[480, 490]"],
     )
     df.index.name = "Band"
     return df

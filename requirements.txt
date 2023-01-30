@@ -14,3 +14,4 @@ seaborn==0.12.2
 tqdm==4.64.1
 shap==0.41.0
 fastapi==0.89.1
+httpx==0.23.3

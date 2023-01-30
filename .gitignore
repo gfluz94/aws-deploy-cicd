@@ -134,3 +134,6 @@ data/*
 
 # DS STORE
 .DS_Store
+
+# Ignore pkl model
+output/*.pkl

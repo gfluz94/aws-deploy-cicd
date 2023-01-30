@@ -17,6 +17,7 @@ class PredictorService(object):
             model_path (str, optional): Path within Docker container where model is located. Defaults to "/app/models".
         """
         self._model_path = model_path
+        self._model = None
 
     @property
     def model_path(self) -> str:
@@ -28,9 +29,9 @@ class PredictorService(object):
         Returns:
             XGBClassifier: Trained classifier
         """
-        if not hasattr(self, "_model"):
-                with open(os.path.join(self._model_path, f"default_classifier.pkl"), "rb") as f:
-                    self._model = dill.load(f)
+        if self._model is None:
+            with open(os.path.join(self._model_path, f"default_classifier.pkl"), "rb") as f:
+                self._model = dill.load(f)
 
         return self._model
 

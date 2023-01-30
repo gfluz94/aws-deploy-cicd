@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Any, Dict
 import pandas as pd
 import pytest
 
@@ -174,4 +174,54 @@ def metrics_output() -> Dict[str, float]:
         "F1": None,
         "ROC-AUC": 0.5,
         "AVERAGE PRECISION": 0.5,
+    }
+
+
+@pytest.fixture(scope="module")
+def prediction_input_json() -> Dict[str, Any]:
+    """Example output for testing purposes
+
+    Returns:
+        Dict[str, float]: Dictionary containing prediction request
+    """
+    return {
+        "uuid": "1234",
+        "max_paid_inv_0_24m": 10.0,
+        "avg_payment_span_0_12m": 10.0,
+        "sum_capital_paid_account_0_12m": 10.0,
+        "time_hours": 10.0,
+        "recovery_debt": 10.0,
+        "sum_capital_paid_account_12_24m": 10.0,
+        "num_active_div_by_paid_inv_0_12m": 10.0,
+        "sum_paid_inv_0_12m": 10.0,
+        "account_days_in_rem_12_24m": 10.0,
+        "num_arch_ok_0_12m": 10.0,
+        "account_amount_added_12_24m": 10.0,
+        "has_paid": True,
+        "account_status": 1.0,
+        "account_worst_status_0_3m": 1.0,
+        "account_worst_status_3_6m": 1.0,
+        "account_worst_status_6_12m": 2.0,
+        "account_worst_status_12_24m": 1.0,
+        "status_last_archived_0_24m": 1.0,
+        "status_2nd_last_archived_0_24m": 1.0,
+        "status_3rd_last_archived_0_24m": 1.0,
+        "status_max_archived_0_6_months": 1.0,
+        "status_max_archived_0_12_months": 1.0,
+        "status_max_archived_0_24_months": 1.0,
+        "merchant_group": "Entertainment",
+    }
+
+
+@pytest.fixture(scope="module")
+def expected_prediction_output() -> Dict[str, Any]:
+    """Example output for testing purposes
+
+    Returns:
+        Dict[str, Any]: Dictionary containing prediction output
+    """
+    return {
+        "uuid": "1234",
+        "default_probability": 0.23453453928232193,
+        "credit_score": 521.2536138390417,
     }

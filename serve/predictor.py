@@ -9,34 +9,25 @@ from xgboost import XGBClassifier
 class PredictorService(object):
     """Trained model wrapper to predict default probability during inference time.
     Parameters:
-        model_path (str, optional): Path within Docker container where model is located. Defaults to "/app/models".
-        user_id_col (str, optional): Field name for user id. Defaults to "uuid".
-        merchant_groups (List[str], optional): Set of merchant groups of interest for preprocessing.
-        log_transform_cols (List[str], optional): Features that require log transformation.
+        model_path (str): Path within Docker container where model is located.
+        user_id_col (str): Field name for user id.
+        merchant_groups (List[str]): Set of merchant groups of interest for preprocessing.
+        log_transform_cols (List[str]): Features that require log transformation.
     """
 
     def __init__(
         self,
-        model_path: str = "models",
-        user_id_col: str = "uuid",
-        merchant_groups: List[str] = [
-            "Clothing & Shoes",
-            "Intangible products",
-            "Food & Beverage",
-            "Erotic Material",
-            "Entertainment",
-        ],
-        log_transform_cols: List[str] = [
-            "max_paid_inv_0_24m",
-            "sum_capital_paid_account_0_12m",
-        ],
+        model_path,
+        user_id_col,
+        merchant_groups: List[str],
+        log_transform_cols: List[str],
     ):
         """Constructor method for PredictorService
         Args:
-            model_path (str, optional): Path within Docker container where model is located. Defaults to "/app/models".
-            user_id_col (str, optional): Field name for user id. Defaults to "uuid".
-            merchant_groups (List[str], optional): Set of merchant groups of interest for preprocessing.
-            log_transform_cols (List[str], optional): Features that require log transformation.
+            model_path (str): Path within Docker container where model is located.
+            user_id_col (str): Field name for user id.
+            merchant_groups (List[str]): Set of merchant groups of interest for preprocessing.
+            log_transform_cols (List[str]): Features that require log transformation.
         """
         self._model_path = model_path
         self._user_id_col = user_id_col

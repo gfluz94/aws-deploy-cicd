@@ -13,3 +13,4 @@ matplotlib==3.6.2
 seaborn==0.12.2
 tqdm==4.64.1
 shap==0.41.0
+fastapi==0.89.1

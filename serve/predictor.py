@@ -27,7 +27,8 @@ class PredictorService(object):
             "Entertainment",
         ],
         log_transform_cols: List[str] = [
-            "max_paid_inv_0_24m", "sum_capital_paid_account_0_12m"
+            "max_paid_inv_0_24m",
+            "sum_capital_paid_account_0_12m",
         ],
     ):
         """Constructor method for PredictorService
@@ -131,7 +132,9 @@ class PredictorService(object):
         double_decrease_factor = 20 / np.log(2)
         constant = 600 - np.log(50) * double_decrease_factor
         probability = np.clip(probability, 1e-8, 0.99999999)
-        return constant - np.log(probability / (1 - probability)) * double_decrease_factor
+        return (
+            constant - np.log(probability / (1 - probability)) * double_decrease_factor
+        )
 
     def predict(self, request_inputs: Dict[str, Any]) -> Dict[str, float]:
         """Method for prediction whenever a request invokes the model in production

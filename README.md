@@ -111,7 +111,7 @@ It is possible to test the execution with the following example:
 
 ```sh
 curl -X 'POST' \
-  'https://ioiwc05x26.execute-api.us-east-1.amazonaws.com/default/credit-default-predictor' \
+  'https://ioiwc05x26.execute-api.us-east-1.amazonaws.com/default/predict' \
   -H 'accept: application/json' \
   -H 'Content-Type: application/json' \
   -H 'x-api-key: <API_KEY>' \
@@ -128,7 +128,7 @@ curl -X 'POST' \
         "account_days_in_rem_12_24m": 10.0,
         "num_arch_ok_0_12m": 10.0,
         "account_amount_added_12_24m": 10.0,
-        "has_paid": True,
+        "has_paid": true,
         "account_status": 1.0,
         "account_worst_status_0_3m": 1.0,
         "account_worst_status_3_6m": 1.0,

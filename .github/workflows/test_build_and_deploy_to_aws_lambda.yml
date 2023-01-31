@@ -61,7 +61,7 @@ jobs:
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v1
     - name: Deploy Lambda Function
-      run: aws lambda update-function-code --function_name LAMBDA_FUNCTION --image-uri $REGISTRY/$REPOSITORY:$IMAGE_TAG
+      run: aws lambda update-function-code --function-name $LAMBDA_FUNCTION --image-uri $REGISTRY/$REPOSITORY:$IMAGE_TAG
       env:
         REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         REPOSITORY: ${{ secrets.AWS_ECR_REPOSITORY }}

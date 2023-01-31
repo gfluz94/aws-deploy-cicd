@@ -1,8 +1,9 @@
 from fastapi import FastAPI
 from starlette.requests import Request
+from mangum import Mangum
 
-from .data import FeatureStoreDataRequest
-from .predictor import PredictorService
+from serve.data import FeatureStoreDataRequest
+from serve.predictor import PredictorService
 
 MODELS_PATH = "models"
 USERID_COLUMN = "uuid"
@@ -24,6 +25,7 @@ predictor = PredictorService(
     log_transform_cols=LOG_TRANSFORM_COLUMNS,
 )
 app = FastAPI()
+handler = Mangum(app)
 
 
 @app.get("/")
